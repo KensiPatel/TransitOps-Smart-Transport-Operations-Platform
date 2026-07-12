@@ -1,20 +1,43 @@
 import { useEffect, useMemo, useState } from "react";
 import { maintenanceApi } from "@/api/maintenance.api";
 import { vehiclesApi } from "@/api/vehicles.api";
-import { useAuth } from "@/context/AuthContext";
-import { useToast } from "@/components/ui/Toast";
+import { useAuthStore } from "@/stores/authStore";
+import { toast } from "sonner";
 import type {
   CreateMaintenanceInput,
   MaintenanceLog,
   Vehicle,
 } from "@/types";
 import { money, formatDate } from "@/lib/format";
-import { PageHeader, SearchBox } from "@/components/ui/PageHeader";
-import { Table, type Column } from "@/components/ui/Table";
-import { StatusBadge } from "@/components/ui/StatusBadge";
-import { Modal } from "@/components/ui/Modal";
-import { Field, Select } from "@/components/ui/Field";
-import { Icon } from "@/components/ui/Icon";
+import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
+import { Plus } from "lucide-react";
+import {
+  Table as ShadcnTable,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import {
+  Select as ShadcnSelect,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 
 const BLANK: CreateMaintenanceInput = {
   vehicle_id: "",
@@ -23,9 +46,23 @@ const BLANK: CreateMaintenanceInput = {
   cost: 0,
 };
 
+const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+  Available: "default",
+  "On Trip": "secondary",
+  "In Shop": "outline",
+  Retired: "outline",
+  "Off Duty": "outline",
+  Suspended: "destructive",
+  Draft: "outline",
+  Dispatched: "secondary",
+  Completed: "default",
+  Cancelled: "destructive",
+  Active: "outline",
+  Closed: "default",
+};
+
 export function MaintenancePage() {
-  const { user } = useAuth();
-  const toast = useToast();
+  const { user } = useAuthStore();
 
   const [logs, setLogs] = useState<MaintenanceLog[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -62,7 +99,6 @@ export function MaintenancePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Vehicles you can send to the shop — not already On Trip or Retired.
   const serviceable = useMemo(
     () => vehicles.filter((v) => v.status !== "On Trip" && v.status !== "Retired"),
     [vehicles]
@@ -112,179 +148,232 @@ export function MaintenancePage() {
     }
   }
 
-  const columns: Column<MaintenanceLog>[] = [
-    {
-      header: "Vehicle",
-      cell: (l) => {
-        const v = vById.get(l.vehicle_id);
-        return (
-          <div>
-            <p className="font-semibold text-zinc-100">
-              {v?.registration_number ?? "—"}
-            </p>
-            <p className="text-xs text-zinc-500">{v?.name_model ?? ""}</p>
-          </div>
-        );
-      },
-    },
-    {
-      header: "Work",
-      cell: (l) => (
-        <div>
-          <p className="text-zinc-200">{l.type}</p>
-          {l.description && (
-            <p className="text-xs text-zinc-500">{l.description}</p>
-          )}
-        </div>
-      ),
-    },
-    { header: "Cost", cell: (l) => money(l.cost) },
-    { header: "Opened", cell: (l) => formatDate(l.started_at) },
-    { header: "Closed", cell: (l) => formatDate(l.closed_at) },
-    { header: "Status", cell: (l) => <StatusBadge status={l.status} /> },
-    {
-      header: "",
-      className: "text-right",
-      cell: (l) =>
-        l.status === "Active" ? (
-          <button
-            onClick={() => close(l)}
-            className="rounded-md bg-emerald-500/15 px-2 py-1 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/25"
-          >
-            Close
-          </button>
-        ) : (
-          <span className="text-xs text-zinc-600">—</span>
-        ),
-    },
-  ];
+  function renderStatusBadge(status: string) {
+    const variant = STATUS_VARIANT[status] ?? "outline";
+    return <Badge variant={variant}>{status}</Badge>;
+  }
 
   return (
     <>
-      <PageHeader
-        title="Maintenance"
-        subtitle="Opening a log sends the vehicle to the shop; closing frees it."
-        actions={
-          <button onClick={openCreate} className="btn-primary">
-            <Icon name="plus" className="h-4 w-4" /> Open log
-          </button>
-        }
-      />
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-foreground">
+            Maintenance
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Opening a log sends the vehicle to the shop; closing frees it.
+          </p>
+        </div>
+        <Button onClick={openCreate}>
+          <Plus className="mr-1 h-4 w-4" /> Open log
+        </Button>
+      </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <SearchBox
-          value={search}
-          onChange={setSearch}
-          placeholder="Search vehicle, work type…"
-        />
-        <div className="w-40">
-          <Select value={statusFilter} onChange={setStatusFilter}>
-            <option value="">All statuses</option>
-            <option value="Active">Active</option>
-            <option value="Closed">Closed</option>
-          </Select>
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search vehicle, work type…"
+            className="pl-9 w-full sm:w-64"
+          />
         </div>
-        <span className="ml-auto text-sm text-zinc-500">
+        <div className="w-40">
+          <ShadcnSelect value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="All statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              <SelectItem value="Active">Active</SelectItem>
+              <SelectItem value="Closed">Closed</SelectItem>
+            </SelectContent>
+          </ShadcnSelect>
+        </div>
+        <span className="ml-auto text-sm text-muted-foreground">
           {filtered.length} log{filtered.length === 1 ? "" : "s"}
         </span>
       </div>
 
-      <Table
-        columns={columns}
-        rows={filtered}
-        keyFn={(l) => l.id}
-        loading={loading}
-        empty="No maintenance logs match your filters."
-      />
+      <div className="rounded-md border">
+        <ShadcnTable>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Vehicle</TableHead>
+              <TableHead>Work</TableHead>
+              <TableHead>Cost</TableHead>
+              <TableHead>Opened</TableHead>
+              <TableHead>Closed</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center text-muted-foreground">
+                  Loading…
+                </TableCell>
+              </TableRow>
+            ) : filtered.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center text-muted-foreground">
+                  No maintenance logs match your filters.
+                </TableCell>
+              </TableRow>
+            ) : (
+              filtered.map((l) => {
+                const v = vById.get(l.vehicle_id);
+                return (
+                  <TableRow key={l.id}>
+                    <TableCell>
+                      <div>
+                        <p className="font-semibold text-foreground">
+                          {v?.registration_number ?? "—"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {v?.name_model ?? ""}
+                        </p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <p className="text-foreground">{l.type}</p>
+                        {l.description && (
+                          <p className="text-xs text-muted-foreground">
+                            {l.description}
+                          </p>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>{money(l.cost)}</TableCell>
+                    <TableCell>{formatDate(l.started_at)}</TableCell>
+                    <TableCell>{formatDate(l.closed_at)}</TableCell>
+                    <TableCell>{renderStatusBadge(l.status)}</TableCell>
+                    <TableCell className="text-right">
+                      {l.status === "Active" ? (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => close(l)}
+                        >
+                          Close
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
+          </TableBody>
+        </ShadcnTable>
+      </div>
 
-      <Modal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title="Open maintenance log"
-        subtitle="On-trip and retired vehicles can't be serviced."
-        footer={
-          <>
-            <button
-              className="btn-ghost"
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Open maintenance log</DialogTitle>
+            <DialogDescription>
+              On-trip and retired vehicles can't be serviced.
+            </DialogDescription>
+          </DialogHeader>
+          {serviceable.length === 0 ? (
+            <p className="py-4 text-center text-sm text-muted-foreground">
+              No serviceable vehicles right now. Complete active trips first.
+            </p>
+          ) : (
+            <form id="maint-form" onSubmit={save} className="space-y-4">
+              <div className="space-y-2">
+                <Label>Vehicle</Label>
+                <ShadcnSelect
+                  value={form.vehicle_id}
+                  onValueChange={(v) => setForm({ ...form, vehicle_id: v })}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {serviceable.map((v) => (
+                      <SelectItem key={v.id} value={v.id}>
+                        {v.registration_number} · {v.name_model} ({v.status})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </ShadcnSelect>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Work type</Label>
+                  <ShadcnSelect
+                    value={form.type}
+                    onValueChange={(v) => setForm({ ...form, type: v })}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[
+                        "Oil Change",
+                        "Tyre Replace",
+                        "Engine Repair",
+                        "Brake Service",
+                        "General Service",
+                        "Other",
+                      ].map((t) => (
+                        <SelectItem key={t} value={t}>
+                          {t}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </ShadcnSelect>
+                </div>
+                <div className="space-y-2">
+                  <Label>Cost (₹)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={form.cost || ""}
+                    onChange={(e) =>
+                      setForm({ ...form, cost: Number(e.target.value) })
+                    }
+                    required
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Description</Label>
+                <textarea
+                  className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-y"
+                  value={form.description}
+                  onChange={(e) =>
+                    setForm({ ...form, description: e.target.value })
+                  }
+                  placeholder="What's being done?"
+                />
+              </div>
+            </form>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
               type="button"
               onClick={() => setModalOpen(false)}
             >
               Cancel
-            </button>
-            <button
-              className="btn-primary"
+            </Button>
+            <Button
+              type="submit"
               form="maint-form"
               disabled={saving || serviceable.length === 0}
             >
               {saving ? "Opening…" : "Open log"}
-            </button>
-          </>
-        }
-      >
-        {serviceable.length === 0 ? (
-          <p className="py-4 text-center text-sm text-zinc-400">
-            No serviceable vehicles right now. Complete active trips first.
-          </p>
-        ) : (
-          <form id="maint-form" onSubmit={save} className="space-y-4">
-            <Field label="Vehicle">
-              <Select
-                value={form.vehicle_id}
-                onChange={(v) => setForm({ ...form, vehicle_id: v })}
-              >
-                {serviceable.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.registration_number} · {v.name_model} ({v.status})
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Work type">
-                <Select
-                  value={form.type}
-                  onChange={(v) => setForm({ ...form, type: v })}
-                >
-                  {[
-                    "Oil Change",
-                    "Tyre Replace",
-                    "Engine Repair",
-                    "Brake Service",
-                    "General Service",
-                    "Other",
-                  ].map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              <Field label="Cost (₹)">
-                <input
-                  type="number"
-                  min={0}
-                  className="input"
-                  value={form.cost || ""}
-                  onChange={(e) =>
-                    setForm({ ...form, cost: Number(e.target.value) })
-                  }
-                  required
-                />
-              </Field>
-            </div>
-            <Field label="Description">
-              <textarea
-                className="input min-h-[80px] resize-y"
-                value={form.description}
-                onChange={(e) =>
-                  setForm({ ...form, description: e.target.value })
-                }
-                placeholder="What's being done?"
-              />
-            </Field>
-          </form>
-        )}
-      </Modal>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -1,21 +1,50 @@
 import { useEffect, useMemo, useState } from "react";
 import { vehiclesApi } from "@/api/vehicles.api";
-import { useAuth } from "@/context/AuthContext";
-import { useToast } from "@/components/ui/Toast";
+import { useAuthStore } from "@/stores/authStore";
+import { toast } from "sonner";
 import type {
   CreateVehicleInput,
   Vehicle,
   VehicleStatus,
 } from "@/types";
 import { money, num } from "@/lib/format";
-import { PageHeader, SearchBox } from "@/components/ui/PageHeader";
-import { Table, type Column } from "@/components/ui/Table";
-import { StatusBadge } from "@/components/ui/StatusBadge";
-import { Modal } from "@/components/ui/Modal";
-import { Field, Select } from "@/components/ui/Field";
-import { Icon } from "@/components/ui/Icon";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Table as ShadcnTable,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select as ShadcnSelect,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import { Plus, Search } from "lucide-react";
 
 const STATUSES: VehicleStatus[] = ["Available", "On Trip", "In Shop", "Retired"];
+
+const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+  Available: "default",
+  "On Trip": "secondary",
+  "In Shop": "outline",
+  Retired: "outline",
+};
 
 const BLANK: CreateVehicleInput = {
   registration_number: "",
@@ -28,8 +57,7 @@ const BLANK: CreateVehicleInput = {
 };
 
 export function VehiclesPage() {
-  const { user } = useAuth();
-  const toast = useToast();
+  const { user } = useAuthStore();
   const canManage = user?.role === "fleet_manager";
 
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -127,209 +155,265 @@ export function VehiclesPage() {
     }
   }
 
-  const columns: Column<Vehicle>[] = [
-    {
-      header: "Vehicle",
-      cell: (v) => (
-        <div>
-          <p className="font-semibold text-zinc-100">{v.name_model}</p>
-          <p className="font-mono text-xs text-zinc-500">
-            {v.registration_number}
-          </p>
-        </div>
-      ),
-    },
-    { header: "Type", cell: (v) => v.type },
-    {
-      header: "Capacity",
-      cell: (v) => num(v.max_load_capacity, "kg"),
-    },
-    { header: "Odometer", cell: (v) => num(v.odometer, "km") },
-    { header: "Region", cell: (v) => v.region ?? "—" },
-    { header: "Acq. Cost", cell: (v) => money(v.acquisition_cost) },
-    { header: "Status", cell: (v) => <StatusBadge status={v.status} /> },
-    {
-      header: "",
-      className: "text-right",
-      cell: (v) =>
-        canManage ? (
-          <div className="flex justify-end gap-1.5">
-            <button
-              onClick={() => openEdit(v)}
-              className="rounded-md px-2 py-1 text-xs font-semibold text-zinc-300 hover:bg-ink-600"
-            >
-              Edit
-            </button>
-            {v.status !== "Retired" ? (
-              <button
-                onClick={() => changeStatus(v, "Retired")}
-                className="rounded-md px-2 py-1 text-xs font-semibold text-red-300 hover:bg-red-500/10"
-              >
-                Retire
-              </button>
-            ) : (
-              <button
-                onClick={() => changeStatus(v, "Available")}
-                className="rounded-md px-2 py-1 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/10"
-              >
-                Reinstate
-              </button>
-            )}
-          </div>
-        ) : (
-          <span className="text-xs text-zinc-600">—</span>
-        ),
-    },
-  ];
-
   return (
     <>
-      <PageHeader
-        title="Vehicle Registry"
-        subtitle="Master list of every asset in the fleet."
-        actions={
-          canManage && (
-            <button onClick={openCreate} className="btn-primary">
-              <Icon name="plus" className="h-4 w-4" /> Add vehicle
-            </button>
-          )
-        }
-      />
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-foreground">
+            Vehicle Registry
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Master list of every asset in the fleet.
+          </p>
+        </div>
+        {canManage && (
+          <Button onClick={openCreate}>
+            <Plus className="mr-2 h-4 w-4" /> Add vehicle
+          </Button>
+        )}
+      </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <SearchBox
-          value={search}
-          onChange={setSearch}
-          placeholder="Search registration, model, region…"
-        />
-        <div className="w-40">
-          <Select value={statusFilter} onChange={setStatusFilter}>
-            <option value="">All statuses</option>
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </Select>
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search registration, model, region…"
+            className="pl-9 w-full sm:w-64"
+          />
         </div>
-        <span className="ml-auto text-sm text-zinc-500">
+        <div className="w-40">
+          <ShadcnSelect
+            value={statusFilter || "all"}
+            onValueChange={(v) => setStatusFilter(v === "all" ? "" : v)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="All statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              {STATUSES.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {s}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </ShadcnSelect>
+        </div>
+        <span className="ml-auto text-sm text-muted-foreground">
           {filtered.length} vehicle{filtered.length === 1 ? "" : "s"}
         </span>
       </div>
 
-      <Table
-        columns={columns}
-        rows={filtered}
-        keyFn={(v) => v.id}
-        loading={loading}
-        empty="No vehicles match your filters."
-      />
+      {loading ? (
+        <div className="py-12 text-center text-sm text-muted-foreground">
+          Loading…
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="py-12 text-center text-sm text-muted-foreground">
+          No vehicles match your filters.
+        </div>
+      ) : (
+        <ShadcnTable>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Vehicle</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Capacity</TableHead>
+              <TableHead>Odometer</TableHead>
+              <TableHead>Region</TableHead>
+              <TableHead>Acq. Cost</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filtered.map((v) => (
+              <TableRow key={v.id}>
+                <TableCell>
+                  <p className="font-semibold text-foreground">{v.name_model}</p>
+                  <p className="font-mono text-xs text-muted-foreground">
+                    {v.registration_number}
+                  </p>
+                </TableCell>
+                <TableCell>{v.type}</TableCell>
+                <TableCell>{num(v.max_load_capacity, "kg")}</TableCell>
+                <TableCell>{num(v.odometer, "km")}</TableCell>
+                <TableCell>{v.region ?? "—"}</TableCell>
+                <TableCell>{money(v.acquisition_cost)}</TableCell>
+                <TableCell>
+                  <Badge variant={STATUS_VARIANT[v.status] ?? "outline"}>
+                    {v.status}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-right">
+                  {canManage ? (
+                    <div className="flex justify-end gap-1.5">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => openEdit(v)}
+                      >
+                        Edit
+                      </Button>
+                      {v.status !== "Retired" ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                          onClick={() => changeStatus(v, "Retired")}
+                        >
+                          Retire
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10"
+                          onClick={() => changeStatus(v, "Available")}
+                        >
+                          Reinstate
+                        </Button>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </ShadcnTable>
+      )}
 
-      <Modal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title={editing ? "Edit vehicle" : "Register vehicle"}
-        subtitle={
-          editing
-            ? editing.registration_number
-            : "Registration number must be unique."
-        }
-        footer={
-          <>
-            <button
-              className="btn-ghost"
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {editing ? "Edit vehicle" : "Register vehicle"}
+            </DialogTitle>
+            <DialogDescription>
+              {editing
+                ? editing.registration_number
+                : "Registration number must be unique."}
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            id="vehicle-form"
+            onSubmit={save}
+            className="grid grid-cols-2 gap-4"
+          >
+            <div className="col-span-2">
+              <div className="space-y-2">
+                <Label>Registration number</Label>
+                <Input
+                  value={form.registration_number}
+                  disabled={!!editing}
+                  onChange={(e) =>
+                    setForm({ ...form, registration_number: e.target.value })
+                  }
+                  placeholder="GJ01AB0000"
+                  required
+                  className="disabled:opacity-60"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Name / model</Label>
+              <Input
+                value={form.name_model}
+                onChange={(e) =>
+                  setForm({ ...form, name_model: e.target.value })
+                }
+                placeholder="TRUCK-12"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Type</Label>
+              <ShadcnSelect
+                value={form.type}
+                onValueChange={(v) => setForm({ ...form, type: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {["Truck", "Van", "Mini", "Bike", "Other"].map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {t}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </ShadcnSelect>
+            </div>
+            <div className="space-y-2">
+              <Label>Max load capacity (kg)</Label>
+              <Input
+                type="number"
+                min={0}
+                value={form.max_load_capacity || ""}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    max_load_capacity: Number(e.target.value),
+                  })
+                }
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Odometer (km)</Label>
+              <Input
+                type="number"
+                min={0}
+                value={form.odometer || ""}
+                onChange={(e) =>
+                  setForm({ ...form, odometer: Number(e.target.value) })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Acquisition cost (₹)</Label>
+              <Input
+                type="number"
+                min={0}
+                value={form.acquisition_cost || ""}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    acquisition_cost: Number(e.target.value),
+                  })
+                }
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Region</Label>
+              <Input
+                value={form.region}
+                onChange={(e) =>
+                  setForm({ ...form, region: e.target.value })
+                }
+                placeholder="Ahmedabad"
+              />
+            </div>
+          </form>
+          <DialogFooter>
+            <Button
+              variant="outline"
               onClick={() => setModalOpen(false)}
               type="button"
             >
               Cancel
-            </button>
-            <button className="btn-primary" form="vehicle-form" disabled={saving}>
+            </Button>
+            <Button type="submit" form="vehicle-form" disabled={saving}>
               {saving ? "Saving…" : editing ? "Save changes" : "Register"}
-            </button>
-          </>
-        }
-      >
-        <form id="vehicle-form" onSubmit={save} className="grid grid-cols-2 gap-4">
-          <div className="col-span-2">
-            <Field label="Registration number">
-              <input
-                className="input disabled:opacity-60"
-                value={form.registration_number}
-                disabled={!!editing}
-                onChange={(e) =>
-                  setForm({ ...form, registration_number: e.target.value })
-                }
-                placeholder="GJ01AB0000"
-                required
-              />
-            </Field>
-          </div>
-          <Field label="Name / model">
-            <input
-              className="input"
-              value={form.name_model}
-              onChange={(e) => setForm({ ...form, name_model: e.target.value })}
-              placeholder="TRUCK-12"
-              required
-            />
-          </Field>
-          <Field label="Type">
-            <Select
-              value={form.type}
-              onChange={(v) => setForm({ ...form, type: v })}
-            >
-              {["Truck", "Van", "Mini", "Bike", "Other"].map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="Max load capacity (kg)">
-            <input
-              type="number"
-              min={0}
-              className="input"
-              value={form.max_load_capacity || ""}
-              onChange={(e) =>
-                setForm({ ...form, max_load_capacity: Number(e.target.value) })
-              }
-              required
-            />
-          </Field>
-          <Field label="Odometer (km)">
-            <input
-              type="number"
-              min={0}
-              className="input"
-              value={form.odometer || ""}
-              onChange={(e) =>
-                setForm({ ...form, odometer: Number(e.target.value) })
-              }
-            />
-          </Field>
-          <Field label="Acquisition cost (₹)">
-            <input
-              type="number"
-              min={0}
-              className="input"
-              value={form.acquisition_cost || ""}
-              onChange={(e) =>
-                setForm({ ...form, acquisition_cost: Number(e.target.value) })
-              }
-              required
-            />
-          </Field>
-          <Field label="Region">
-            <input
-              className="input"
-              value={form.region}
-              onChange={(e) => setForm({ ...form, region: e.target.value })}
-              placeholder="Ahmedabad"
-            />
-          </Field>
-        </form>
-      </Modal>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -1,17 +1,46 @@
 import { useEffect, useMemo, useState } from "react";
 import { driversApi } from "@/api/drivers.api";
-import { useAuth } from "@/context/AuthContext";
-import { useToast } from "@/components/ui/Toast";
+import { useAuthStore } from "@/stores/authStore";
+import { toast } from "sonner";
 import type { CreateDriverInput, Driver, DriverStatus } from "@/types";
 import { formatDate, daysUntil } from "@/lib/format";
-import { PageHeader, SearchBox } from "@/components/ui/PageHeader";
-import { Table, type Column } from "@/components/ui/Table";
-import { StatusBadge } from "@/components/ui/StatusBadge";
-import { Modal } from "@/components/ui/Modal";
-import { Field, Select } from "@/components/ui/Field";
-import { Icon } from "@/components/ui/Icon";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Table as ShadcnTable,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select as ShadcnSelect,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import { Plus, Search } from "lucide-react";
 
 const STATUSES: DriverStatus[] = ["Available", "On Trip", "Off Duty", "Suspended"];
+
+const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+  Available: "default",
+  "On Trip": "secondary",
+  "Off Duty": "outline",
+  Suspended: "destructive",
+};
 
 const BLANK: CreateDriverInput = {
   name: "",
@@ -25,11 +54,15 @@ const BLANK: CreateDriverInput = {
 function LicenseCell({ date }: { date: string }) {
   const days = daysUntil(date);
   const tone =
-    days < 0 ? "text-red-300" : days <= 30 ? "text-accent" : "text-zinc-200";
+    days < 0
+      ? "text-red-300"
+      : days <= 30
+        ? "text-accent"
+        : "text-foreground";
   return (
     <div>
       <p className={tone}>{formatDate(date)}</p>
-      <p className="text-[11px] text-zinc-500">
+      <p className="text-[11px] text-muted-foreground">
         {days < 0 ? `expired ${-days}d ago` : `${days}d left`}
       </p>
     </div>
@@ -37,8 +70,7 @@ function LicenseCell({ date }: { date: string }) {
 }
 
 export function DriversPage() {
-  const { user } = useAuth();
-  const toast = useToast();
+  const { user } = useAuthStore();
   const canManage =
     user?.role === "fleet_manager" ||
     user?.role === "driver" ||
@@ -138,207 +170,268 @@ export function DriversPage() {
     }
   }
 
-  const columns: Column<Driver>[] = [
-    {
-      header: "Driver",
-      cell: (d) => (
-        <div>
-          <p className="font-semibold text-zinc-100">{d.name}</p>
-          <p className="font-mono text-xs text-zinc-500">{d.license_number}</p>
-        </div>
-      ),
-    },
-    { header: "Category", cell: (d) => d.license_category },
-    { header: "License expiry", cell: (d) => <LicenseCell date={d.license_expiry_date} /> },
-    { header: "Contact", cell: (d) => d.contact_number },
-    {
-      header: "Safety",
-      cell: (d) => (
-        <span
-          className={
-            d.safety_score >= 90
-              ? "text-emerald-300"
-              : d.safety_score >= 75
-                ? "text-accent"
-                : "text-red-300"
-          }
-        >
-          {d.safety_score}
-        </span>
-      ),
-    },
-    { header: "Status", cell: (d) => <StatusBadge status={d.status} /> },
-    {
-      header: "",
-      className: "text-right",
-      cell: (d) => (
-        <div className="flex justify-end gap-1.5">
-          {canManage && (
-            <button
-              onClick={() => openEdit(d)}
-              className="rounded-md px-2 py-1 text-xs font-semibold text-zinc-300 hover:bg-ink-600"
-            >
-              Edit
-            </button>
-          )}
-          {canSuspend &&
-            (d.status === "Suspended" ? (
-              <button
-                onClick={() => changeStatus(d, "Available")}
-                className="rounded-md px-2 py-1 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/10"
-              >
-                Reinstate
-              </button>
-            ) : (
-              d.status !== "On Trip" && (
-                <button
-                  onClick={() => changeStatus(d, "Suspended")}
-                  className="rounded-md px-2 py-1 text-xs font-semibold text-red-300 hover:bg-red-500/10"
-                >
-                  Suspend
-                </button>
-              )
-            ))}
-        </div>
-      ),
-    },
-  ];
-
   return (
     <>
-      <PageHeader
-        title="Driver Management"
-        subtitle="Profiles, licence validity and safety scores."
-        actions={
-          canManage && (
-            <button onClick={openCreate} className="btn-primary">
-              <Icon name="plus" className="h-4 w-4" /> Add driver
-            </button>
-          )
-        }
-      />
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-foreground">
+            Driver Management
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Profiles, licence validity and safety scores.
+          </p>
+        </div>
+        {canManage && (
+          <Button onClick={openCreate}>
+            <Plus className="mr-2 h-4 w-4" /> Add driver
+          </Button>
+        )}
+      </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <SearchBox
-          value={search}
-          onChange={setSearch}
-          placeholder="Search name, licence, contact…"
-        />
-        <div className="w-40">
-          <Select value={statusFilter} onChange={setStatusFilter}>
-            <option value="">All statuses</option>
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </Select>
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search name, licence, contact…"
+            className="pl-9 w-full sm:w-64"
+          />
         </div>
-        <span className="ml-auto text-sm text-zinc-500">
+        <div className="w-40">
+          <ShadcnSelect
+            value={statusFilter || "all"}
+            onValueChange={(v) => setStatusFilter(v === "all" ? "" : v)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="All statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              {STATUSES.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {s}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </ShadcnSelect>
+        </div>
+        <span className="ml-auto text-sm text-muted-foreground">
           {filtered.length} driver{filtered.length === 1 ? "" : "s"}
         </span>
       </div>
 
-      <Table
-        columns={columns}
-        rows={filtered}
-        keyFn={(d) => d.id}
-        loading={loading}
-        empty="No drivers match your filters."
-      />
+      {loading ? (
+        <div className="py-12 text-center text-sm text-muted-foreground">
+          Loading…
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="py-12 text-center text-sm text-muted-foreground">
+          No drivers match your filters.
+        </div>
+      ) : (
+        <ShadcnTable>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Driver</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead>License expiry</TableHead>
+              <TableHead>Contact</TableHead>
+              <TableHead>Safety</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filtered.map((d) => (
+              <TableRow key={d.id}>
+                <TableCell>
+                  <p className="font-semibold text-foreground">{d.name}</p>
+                  <p className="font-mono text-xs text-muted-foreground">
+                    {d.license_number}
+                  </p>
+                </TableCell>
+                <TableCell>{d.license_category}</TableCell>
+                <TableCell>
+                  <LicenseCell date={d.license_expiry_date} />
+                </TableCell>
+                <TableCell>{d.contact_number}</TableCell>
+                <TableCell>
+                  <span
+                    className={
+                      d.safety_score >= 90
+                        ? "text-emerald-500"
+                        : d.safety_score >= 75
+                          ? "text-accent"
+                          : "text-red-500"
+                    }
+                  >
+                    {d.safety_score}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={STATUS_VARIANT[d.status] ?? "outline"}>
+                    {d.status}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-1.5">
+                    {canManage && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => openEdit(d)}
+                      >
+                        Edit
+                      </Button>
+                    )}
+                    {canSuspend &&
+                      (d.status === "Suspended" ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10"
+                          onClick={() => changeStatus(d, "Available")}
+                        >
+                          Reinstate
+                        </Button>
+                      ) : (
+                        d.status !== "On Trip" && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                            onClick={() => changeStatus(d, "Suspended")}
+                          >
+                            Suspend
+                          </Button>
+                        )
+                      ))}
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </ShadcnTable>
+      )}
 
-      <Modal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title={editing ? "Edit driver" : "Add driver"}
-        subtitle={editing ? editing.name : "Licence number must be unique."}
-        footer={
-          <>
-            <button
-              className="btn-ghost"
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {editing ? "Edit driver" : "Add driver"}
+            </DialogTitle>
+            <DialogDescription>
+              {editing ? editing.name : "Licence number must be unique."}
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            id="driver-form"
+            onSubmit={save}
+            className="grid grid-cols-2 gap-4"
+          >
+            <div className="col-span-2">
+              <div className="space-y-2">
+                <Label>Full name</Label>
+                <Input
+                  value={form.name}
+                  onChange={(e) =>
+                    setForm({ ...form, name: e.target.value })
+                  }
+                  required
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>License number</Label>
+              <Input
+                value={form.license_number}
+                disabled={!!editing}
+                onChange={(e) =>
+                  setForm({ ...form, license_number: e.target.value })
+                }
+                placeholder="DL-00000"
+                required
+                className="disabled:opacity-60"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Category</Label>
+              <ShadcnSelect
+                value={form.license_category}
+                onValueChange={(v) =>
+                  setForm({ ...form, license_category: v })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {["LMV", "HMV", "MCWG", "Other"].map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </ShadcnSelect>
+            </div>
+            <div className="space-y-2">
+              <Label>License expiry</Label>
+              <Input
+                type="date"
+                value={form.license_expiry_date}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    license_expiry_date: e.target.value,
+                  })
+                }
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Contact number</Label>
+              <Input
+                value={form.contact_number}
+                onChange={(e) =>
+                  setForm({ ...form, contact_number: e.target.value })
+                }
+                required
+              />
+            </div>
+            <div className="col-span-2">
+              <div className="space-y-2">
+                <Label>Safety score — {form.safety_score}</Label>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={form.safety_score}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      safety_score: Number(e.target.value),
+                    })
+                  }
+                  className="w-full accent-accent"
+                />
+              </div>
+            </div>
+          </form>
+          <DialogFooter>
+            <Button
+              variant="outline"
               onClick={() => setModalOpen(false)}
               type="button"
             >
               Cancel
-            </button>
-            <button className="btn-primary" form="driver-form" disabled={saving}>
+            </Button>
+            <Button type="submit" form="driver-form" disabled={saving}>
               {saving ? "Saving…" : editing ? "Save changes" : "Add driver"}
-            </button>
-          </>
-        }
-      >
-        <form id="driver-form" onSubmit={save} className="grid grid-cols-2 gap-4">
-          <div className="col-span-2">
-            <Field label="Full name">
-              <input
-                className="input"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                required
-              />
-            </Field>
-          </div>
-          <Field label="License number">
-            <input
-              className="input disabled:opacity-60"
-              value={form.license_number}
-              disabled={!!editing}
-              onChange={(e) =>
-                setForm({ ...form, license_number: e.target.value })
-              }
-              placeholder="DL-00000"
-              required
-            />
-          </Field>
-          <Field label="Category">
-            <Select
-              value={form.license_category}
-              onChange={(v) => setForm({ ...form, license_category: v })}
-            >
-              {["LMV", "HMV", "MCWG", "Other"].map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="License expiry">
-            <input
-              type="date"
-              className="input"
-              value={form.license_expiry_date}
-              onChange={(e) =>
-                setForm({ ...form, license_expiry_date: e.target.value })
-              }
-              required
-            />
-          </Field>
-          <Field label="Contact number">
-            <input
-              className="input"
-              value={form.contact_number}
-              onChange={(e) =>
-                setForm({ ...form, contact_number: e.target.value })
-              }
-              required
-            />
-          </Field>
-          <div className="col-span-2">
-            <Field label={`Safety score — ${form.safety_score}`}>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={form.safety_score}
-                onChange={(e) =>
-                  setForm({ ...form, safety_score: Number(e.target.value) })
-                }
-                className="w-full accent-accent"
-              />
-            </Field>
-          </div>
-        </form>
-      </Modal>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

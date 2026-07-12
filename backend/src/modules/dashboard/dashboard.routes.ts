@@ -11,7 +11,7 @@ import {
 export const dashboardRoutes = new Elysia({ prefix: "/dashboard" })
   // Must be logged in, then must be a management/analytics role.
   .use(requireAuth)
-  .use(requireRole("fleet_manager", "financial_analyst"))
+  .use(requireRole("fleet_manager", "financial_analyst", "driver", "dispatcher", "safety_officer"))
 
   // GET /dashboard?recent_limit=5&license_expiry_window_days=30&in_shop_alert_days=7
   .get("/", ({ query }) => {

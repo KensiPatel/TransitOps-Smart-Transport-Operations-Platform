@@ -10,7 +10,7 @@
 // which is why vite.config.ts pins the dev server to that port.
 // ============================================================
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
+const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
 export class ApiError extends Error {
   status: number;

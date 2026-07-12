@@ -1,11 +1,20 @@
-import { useAuth } from "@/context/AuthContext";
-import { useToast } from "@/components/ui/Toast";
-import { Icon } from "@/components/ui/Icon";
+import { useAuthStore } from "@/stores/authStore";
 import { ROLE_LABELS } from "@/types";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Menu, LogOut, User } from "lucide-react";
+import { toast } from "sonner";
 
 export function Topbar({ onMenu }: { onMenu: () => void }) {
-  const { user, logout } = useAuth();
-  const toast = useToast();
+  const { user, logout } = useAuthStore();
 
   async function handleLogout() {
     await logout();
@@ -22,16 +31,18 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
     .toUpperCase();
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-ink-600/70 bg-ink-900/80 px-4 backdrop-blur sm:px-6">
-      <button
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-border bg-background/80 px-4 backdrop-blur sm:px-6">
+      <Button
+        variant="ghost"
+        size="icon"
         onClick={onMenu}
-        className="rounded-lg p-2 text-zinc-300 hover:bg-ink-700 lg:hidden"
+        className="lg:hidden"
         aria-label="Open menu"
       >
-        <Icon name="grid" className="h-5 w-5" />
-      </button>
+        <Menu className="h-5 w-5" />
+      </Button>
 
-      <div className="hidden text-sm text-zinc-500 sm:block">
+      <div className="hidden text-sm text-muted-foreground sm:block">
         {new Date().toLocaleDateString("en-IN", {
           weekday: "long",
           day: "numeric",
@@ -41,21 +52,41 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
       </div>
 
       <div className="ml-auto flex items-center gap-3">
-        <div className="hidden text-right sm:block">
-          <p className="text-sm font-semibold text-zinc-100">{user.name}</p>
-          <p className="text-xs text-zinc-500">{ROLE_LABELS[user.role]}</p>
-        </div>
-        <div className="grid h-9 w-9 place-items-center rounded-full bg-accent/20 text-sm font-bold text-accent ring-1 ring-accent/40">
-          {initials}
-        </div>
-        <button
-          onClick={handleLogout}
-          className="btn-ghost px-3 py-2"
-          title="Log out"
-        >
-          <Icon name="logout" className="h-4 w-4" />
-          <span className="hidden sm:inline">Logout</span>
-        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="flex items-center gap-2 outline-none">
+              <div className="hidden text-right sm:block">
+                <p className="text-sm font-semibold text-foreground">
+                  {user.name}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {ROLE_LABELS[user.role]}
+                </p>
+              </div>
+              <Avatar className="h-9 w-9">
+                <AvatarFallback className="bg-accent/20 text-sm font-bold text-accent">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuLabel>
+              <p className="font-medium">{user.name}</p>
+              <p className="text-xs text-muted-foreground">{user.email}</p>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem>
+              <User className="mr-2 h-4 w-4" />
+              Profile
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem variant="destructive" onClick={handleLogout}>
+              <LogOut className="mr-2 h-4 w-4" />
+              Logout
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );

@@ -11,10 +11,10 @@ export const authApi = {
   login: (email: string, password: string) =>
     http.post<UserResponse>("/auth/login", { email, password }).then((r) => r.user),
 
-  // Backend assigns role "driver" to all self-signups regardless of input.
-  signup: (name: string, email: string, password: string) =>
+  // Backend restricts self-signup to driver/dispatcher; other roles are admin-assigned.
+  signup: (name: string, email: string, password: string, role?: string) =>
     http
-      .post<UserResponse>("/auth/signup", { name, email, password })
+      .post<UserResponse>("/auth/signup", { name, email, password, role })
       .then((r) => r.user),
 
   loginWithGoogle: (credential: string) =>

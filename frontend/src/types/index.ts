@@ -8,7 +8,8 @@ export type UserRole =
   | "fleet_manager"
   | "driver"
   | "safety_officer"
-  | "financial_analyst";
+  | "financial_analyst"
+  | "dispatcher";
 
 export interface PublicUser {
   id: string;
@@ -20,9 +21,10 @@ export interface PublicUser {
 
 export const ROLE_LABELS: Record<UserRole, string> = {
   fleet_manager: "Fleet Manager",
-  driver: "Driver / Dispatcher",
+  driver: "Driver",
   safety_officer: "Safety Officer",
   financial_analyst: "Financial Analyst",
+  dispatcher: "Dispatcher",
 };
 
 // ---------- Vehicles ----------

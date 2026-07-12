@@ -30,7 +30,7 @@ CREATE TABLE users (
   name TEXT NOT NULL,
   avatar_url TEXT,
   password_hash TEXT,
-  role TEXT NOT NULL DEFAULT 'driver' CHECK (role IN ('fleet_manager','driver','safety_officer','financial_analyst')),
+  role TEXT NOT NULL DEFAULT 'driver' CHECK (role IN ('fleet_manager','driver','safety_officer','financial_analyst','dispatcher')),
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
