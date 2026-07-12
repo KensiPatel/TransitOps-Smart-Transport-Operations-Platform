@@ -10,13 +10,13 @@ PRAGMA foreign_keys = ON;
 -- USERS & AUTH
 -- ============================================
 CREATE TABLE IF NOT EXISTS users (
-  id            TEXT PRIMARY KEY,
-  name          TEXT NOT NULL,
-  email         TEXT NOT NULL UNIQUE,
-  password_hash TEXT NOT NULL,
-  role          TEXT NOT NULL CHECK (role IN
-                  ('fleet_manager','dispatcher','safety_officer','financial_analyst')),
-  created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  google_id TEXT UNIQUE NOT NULL,
+  email TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  avatar_url TEXT,
+  role TEXT NOT NULL DEFAULT 'driver' CHECK (role IN ('fleet_manager','driver','safety_officer','financial_analyst')),
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- ============================================
