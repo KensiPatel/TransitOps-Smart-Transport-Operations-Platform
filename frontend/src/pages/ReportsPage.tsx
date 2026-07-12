@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { reportsApi } from "@/api/reports.api";
-import { useToast } from "@/components/ui/Toast";
+import { toast } from "sonner";
 import type {
   DriverSafetyReport,
   FuelEfficiencyReport,
@@ -9,12 +9,26 @@ import type {
 } from "@/types";
 import { money, num, pct, formatDate } from "@/lib/format";
 import { exportToCsv } from "@/lib/format";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { KpiCard } from "@/components/ui/KpiCard";
-import { Table, type Column } from "@/components/ui/Table";
-import { Field } from "@/components/ui/Field";
-import { Icon } from "@/components/ui/Icon";
-import { StatusBadge } from "@/components/ui/StatusBadge";
+import { Download, Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Table as ShadcnTable,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+
+interface Column<T> {
+  header: string;
+  cell: (row: T) => React.ReactNode;
+}
 
 type Tab = "roi" | "fuel" | "safety" | "completion";
 const TABS: { id: Tab; label: string }[] = [
@@ -24,8 +38,25 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "completion", label: "Trip Completion" },
 ];
 
+const STATUS_VARIANT: Record<
+  string,
+  "default" | "secondary" | "destructive" | "outline"
+> = {
+  Available: "default",
+  "On Trip": "secondary",
+  "In Shop": "outline",
+  Retired: "outline",
+  "Off Duty": "outline",
+  Suspended: "destructive",
+  Draft: "outline",
+  Dispatched: "secondary",
+  Completed: "default",
+  Cancelled: "destructive",
+  Active: "outline",
+  Closed: "default",
+};
+
 export function ReportsPage() {
-  const toast = useToast();
   const [tab, setTab] = useState<Tab>("roi");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
@@ -35,16 +66,23 @@ export function ReportsPage() {
   const [roi, setRoi] = useState<VehicleROIReport | null>(null);
   const [fuelEff, setFuelEff] = useState<FuelEfficiencyReport | null>(null);
   const [safety, setSafety] = useState<DriverSafetyReport | null>(null);
-  const [completion, setCompletion] = useState<TripCompletionReport | null>(null);
+  const [completion, setCompletion] =
+    useState<TripCompletionReport | null>(null);
 
-  const filters = { start_date: start || undefined, end_date: end || undefined, search: search || undefined };
+  const filters = {
+    start_date: start || undefined,
+    end_date: end || undefined,
+    search: search || undefined,
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       if (tab === "roi") setRoi(await reportsApi.vehicleRoi(filters));
-      else if (tab === "fuel") setFuelEff(await reportsApi.fuelEfficiency(filters));
-      else if (tab === "safety") setSafety(await reportsApi.driverSafety(filters));
+      else if (tab === "fuel")
+        setFuelEff(await reportsApi.fuelEfficiency(filters));
+      else if (tab === "safety")
+        setSafety(await reportsApi.driverSafety(filters));
       else
         setCompletion(
           await reportsApi.tripCompletion({
@@ -65,8 +103,7 @@ export function ReportsPage() {
   }, [load]);
 
   function handleExport() {
-    if (tab === "roi" && roi)
-      exportToCsv("vehicle-roi", roi.rows);
+    if (tab === "roi" && roi) exportToCsv("vehicle-roi", roi.rows);
     else if (tab === "fuel" && fuelEff)
       exportToCsv("fuel-efficiency-by-vehicle", fuelEff.by_vehicle);
     else if (tab === "safety" && safety)
@@ -78,7 +115,10 @@ export function ReportsPage() {
         { metric: "Dispatched", value: completion.by_status.Dispatched },
         { metric: "Completed", value: completion.by_status.Completed },
         { metric: "Cancelled", value: completion.by_status.Cancelled },
-        { metric: "Completion rate %", value: completion.completion_rate_percent ?? "—" },
+        {
+          metric: "Completion rate %",
+          value: completion.completion_rate_percent ?? "—",
+        },
         { metric: "Total revenue", value: completion.total_revenue },
         { metric: "Total distance", value: completion.total_distance },
       ]);
@@ -90,8 +130,8 @@ export function ReportsPage() {
       header: "Vehicle",
       cell: (r) => (
         <div>
-          <p className="font-semibold text-zinc-100">{r.name_model}</p>
-          <p className="font-mono text-xs text-zinc-500">
+          <p className="font-semibold text-foreground">{r.name_model}</p>
+          <p className="font-mono text-xs text-muted-foreground">
             {r.registration_number}
           </p>
         </div>
@@ -103,7 +143,11 @@ export function ReportsPage() {
     {
       header: "Net profit",
       cell: (r) => (
-        <span className={r.net_profit >= 0 ? "text-emerald-300" : "text-red-300"}>
+        <span
+          className={
+            r.net_profit >= 0 ? "text-emerald-300" : "text-red-300"
+          }
+        >
           {money(r.net_profit)}
         </span>
       ),
@@ -114,7 +158,7 @@ export function ReportsPage() {
         <span
           className={
             r.roi_percent == null
-              ? "text-zinc-500"
+              ? "text-muted-foreground"
               : r.roi_percent >= 0
                 ? "text-emerald-300"
                 : "text-red-300"
@@ -131,8 +175,8 @@ export function ReportsPage() {
       header: "Vehicle",
       cell: (r) => (
         <div>
-          <p className="font-semibold text-zinc-100">{r.name_model}</p>
-          <p className="font-mono text-xs text-zinc-500">
+          <p className="font-semibold text-foreground">{r.name_model}</p>
+          <p className="font-mono text-xs text-muted-foreground">
             {r.registration_number}
           </p>
         </div>
@@ -145,7 +189,7 @@ export function ReportsPage() {
       header: "km / L",
       cell: (r) =>
         r.km_per_liter == null ? (
-          <span className="text-zinc-500">—</span>
+          <span className="text-muted-foreground">—</span>
         ) : (
           <span className="text-accent">{r.km_per_liter}</span>
         ),
@@ -161,12 +205,21 @@ export function ReportsPage() {
       header: "Driver",
       cell: (r) => (
         <div>
-          <p className="font-semibold text-zinc-100">{r.name}</p>
-          <p className="font-mono text-xs text-zinc-500">{r.license_number}</p>
+          <p className="font-semibold text-foreground">{r.name}</p>
+          <p className="font-mono text-xs text-muted-foreground">
+            {r.license_number}
+          </p>
         </div>
       ),
     },
-    { header: "Status", cell: (r) => <StatusBadge status={r.status} /> },
+    {
+      header: "Status",
+      cell: (r) => (
+        <Badge variant={STATUS_VARIANT[r.status] ?? "outline"}>
+          {r.status}
+        </Badge>
+      ),
+    },
     {
       header: "Safety score",
       cell: (r) => (
@@ -187,54 +240,99 @@ export function ReportsPage() {
     { header: "Distance", cell: (r) => num(r.total_distance, "km") },
   ];
 
+  function renderTable<T>(
+    cols: Column<T>[],
+    rows: T[],
+    keyFn: (row: T) => string
+  ) {
+    if (loading) {
+      return (
+        <div className="rounded-xl border border-border py-10 text-center text-muted-foreground">
+          Loading…
+        </div>
+      );
+    }
+    if (rows.length === 0) {
+      return (
+        <div className="rounded-xl border border-border py-10 text-center text-muted-foreground">
+          No data in range.
+        </div>
+      );
+    }
+    return (
+      <div className="overflow-x-auto rounded-xl border border-border">
+        <ShadcnTable>
+          <TableHeader>
+            <TableRow>
+              {cols.map((c, i) => (
+                <TableHead key={i}>{c.header}</TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row) => (
+              <TableRow key={keyFn(row)}>
+                {cols.map((c, i) => (
+                  <TableCell key={i}>{c.cell(row)}</TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </ShadcnTable>
+      </div>
+    );
+  }
+
   return (
     <>
-      <PageHeader
-        title="Reports & Analytics"
-        subtitle="ROI, fuel efficiency, safety and completion — exportable to CSV."
-        actions={
-          <button onClick={handleExport} className="btn-ghost">
-            <Icon name="download" className="h-4 w-4" /> Export CSV
-          </button>
-        }
-      />
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-foreground">
+            Reports & Analytics
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            ROI, fuel efficiency, safety and completion — exportable to CSV.
+          </p>
+        </div>
+        <Button variant="outline" onClick={handleExport}>
+          <Download className="mr-1.5 h-4 w-4" /> Export CSV
+        </Button>
+      </div>
 
       <div className="mb-4 flex flex-wrap items-end gap-3">
-        <div className="w-40">
-          <Field label="From">
-            <input
-              type="date"
-              className="input"
-              value={start}
-              onChange={(e) => setStart(e.target.value)}
-            />
-          </Field>
+        <div className="w-40 space-y-2">
+          <Label>From</Label>
+          <Input
+            type="date"
+            value={start}
+            onChange={(e) => setStart(e.target.value)}
+          />
         </div>
-        <div className="w-40">
-          <Field label="To">
-            <input
-              type="date"
-              className="input"
-              value={end}
-              onChange={(e) => setEnd(e.target.value)}
-            />
-          </Field>
+        <div className="w-40 space-y-2">
+          <Label>To</Label>
+          <Input
+            type="date"
+            value={end}
+            onChange={(e) => setEnd(e.target.value)}
+          />
         </div>
         {tab !== "completion" && (
-          <div className="w-56">
-            <Field label="Search">
-              <input
-                className="input"
+          <div className="w-56 space-y-2">
+            <Label>Search</Label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
                 placeholder="Vehicle / driver…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                className="pl-9"
               />
-            </Field>
+            </div>
           </div>
         )}
         {(start || end || search) && (
-          <button
-            className="btn-ghost"
+          <Button
+            variant="outline"
             onClick={() => {
               setStart("");
               setEnd("");
@@ -242,118 +340,173 @@ export function ReportsPage() {
             }}
           >
             Clear
-          </button>
+          </Button>
         )}
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-1.5 rounded-lg border border-ink-600 bg-ink-800 p-1">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`rounded-md px-4 py-1.5 text-sm font-semibold transition ${
-              tab === t.id
-                ? "bg-accent text-ink-900"
-                : "text-zinc-400 hover:text-zinc-200"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="mb-4">
+        <TabsList>
+          {TABS.map((t) => (
+            <TabsTrigger key={t.id} value={t.id}>
+              {t.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
 
       {tab === "roi" && (
         <>
           {roi && (
             <div className="mb-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
-              <KpiCard label="Total Revenue" value={money(roi.totals.revenue)} accent />
-              <KpiCard label="Running Cost" value={money(roi.totals.running_cost)} />
-              <KpiCard label="Capital Cost" value={money(roi.totals.acquisition_cost)} />
-              <KpiCard
-                label="Net Profit"
-                value={money(roi.totals.net_profit)}
-              />
+              <Card className="ring-1 ring-accent/40">
+                <CardContent className="p-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Total Revenue
+                  </p>
+                  <p className="mt-2 font-display text-3xl font-bold tabular-nums text-accent">
+                    {money(roi.totals.revenue)}
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Running Cost
+                  </p>
+                  <p className="mt-2 font-display text-3xl font-bold tabular-nums text-foreground">
+                    {money(roi.totals.running_cost)}
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Capital Cost
+                  </p>
+                  <p className="mt-2 font-display text-3xl font-bold tabular-nums text-foreground">
+                    {money(roi.totals.acquisition_cost)}
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Net Profit
+                  </p>
+                  <p className="mt-2 font-display text-3xl font-bold tabular-nums text-foreground">
+                    {money(roi.totals.net_profit)}
+                  </p>
+                </CardContent>
+              </Card>
             </div>
           )}
-          <Table
-            columns={roiCols}
-            rows={roi?.rows ?? []}
-            keyFn={(r) => r.vehicle_id}
-            loading={loading}
-            empty="No vehicles in range."
-          />
+          {renderTable(roiCols, roi?.rows ?? [], (r) => r.vehicle_id)}
         </>
       )}
 
-      {tab === "fuel" && (
-        <Table
-          columns={fuelCols}
-          rows={fuelEff?.by_vehicle ?? []}
-          keyFn={(r) => r.vehicle_id}
-          loading={loading}
-          empty="No fuel data in range."
-        />
-      )}
+      {tab === "fuel" &&
+        renderTable(
+          fuelCols,
+          fuelEff?.by_vehicle ?? [],
+          (r) => r.vehicle_id
+        )}
 
       {tab === "safety" && (
         <>
           {safety && (
             <div className="mb-4">
-              <KpiCard
-                label="Fleet Average Safety Score"
-                value={safety.fleet_average_safety_score ?? "—"}
-                accent
-              />
+              <Card className="ring-1 ring-accent/40">
+                <CardContent className="p-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Fleet Average Safety Score
+                  </p>
+                  <p className="mt-2 font-display text-3xl font-bold tabular-nums text-accent">
+                    {safety.fleet_average_safety_score ?? "—"}
+                  </p>
+                </CardContent>
+              </Card>
             </div>
           )}
-          <Table
-            columns={safetyCols}
-            rows={safety?.rows ?? []}
-            keyFn={(r) => r.driver_id}
-            loading={loading}
-            empty="No drivers in range."
-          />
+          {renderTable(safetyCols, safety?.rows ?? [], (r) => r.driver_id)}
         </>
       )}
 
       {tab === "completion" && completion && (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <KpiCard label="Total Trips" value={completion.total_trips} accent />
-            <KpiCard
-              label="Completion Rate"
-              value={pct(completion.completion_rate_percent)}
-            />
-            <KpiCard label="Total Revenue" value={money(completion.total_revenue)} />
-            <KpiCard label="Total Distance" value={num(completion.total_distance, "km")} />
+            <Card className="ring-1 ring-accent/40">
+              <CardContent className="p-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Total Trips
+                </p>
+                <p className="mt-2 font-display text-3xl font-bold tabular-nums text-accent">
+                  {completion.total_trips}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Completion Rate
+                </p>
+                <p className="mt-2 font-display text-3xl font-bold tabular-nums text-foreground">
+                  {pct(completion.completion_rate_percent)}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Total Revenue
+                </p>
+                <p className="mt-2 font-display text-3xl font-bold tabular-nums text-foreground">
+                  {money(completion.total_revenue)}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Total Distance
+                </p>
+                <p className="mt-2 font-display text-3xl font-bold tabular-nums text-foreground">
+                  {num(completion.total_distance, "km")}
+                </p>
+              </CardContent>
+            </Card>
           </div>
-          <div className="card p-5">
-            <h3 className="mb-3 font-display font-semibold text-zinc-100">
-              Trips by status
-            </h3>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {(["Draft", "Dispatched", "Completed", "Cancelled"] as const).map(
-                (s) => (
+          <Card>
+            <CardContent className="p-5">
+              <h3 className="mb-3 font-display font-semibold text-foreground">
+                Trips by status
+              </h3>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {(
+                  ["Draft", "Dispatched", "Completed", "Cancelled"] as const
+                ).map((s) => (
                   <div
                     key={s}
-                    className="rounded-lg border border-ink-600/70 bg-ink-700/40 p-4 text-center"
+                    className="rounded-lg border border-border bg-muted p-4 text-center"
                   >
-                    <p className="font-display text-3xl font-bold text-zinc-100">
+                    <p className="font-display text-3xl font-bold text-foreground">
                       {completion.by_status[s]}
                     </p>
-                    <p className="mt-1 text-xs text-zinc-500">{s}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{s}</p>
                   </div>
-                )
-              )}
-            </div>
-            <p className="mt-4 text-xs text-zinc-500">
-              Range:{" "}
-              {completion.range.start_date
-                ? formatDate(completion.range.start_date)
-                : "all time"}{" "}
-              → {completion.range.end_date ? formatDate(completion.range.end_date) : "now"}
-            </p>
-          </div>
+                ))}
+              </div>
+              <p className="mt-4 text-xs text-muted-foreground">
+                Range:{" "}
+                {completion.range.start_date
+                  ? formatDate(completion.range.start_date)
+                  : "all time"}{" "}
+                →{" "}
+                {completion.range.end_date
+                  ? formatDate(completion.range.end_date)
+                  : "now"}
+              </p>
+            </CardContent>
+          </Card>
         </div>
       )}
     </>

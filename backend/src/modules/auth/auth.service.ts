@@ -124,7 +124,8 @@ export async function verifyPassword(
 export async function createUserWithPassword(
     name: string,
     email: string,
-    password: string
+    password: string,
+    role: string = "driver"
 ): Promise<AppUser> {
     const existing = getUserByEmail(email);
     if (existing) {
@@ -137,7 +138,7 @@ export async function createUserWithPassword(
     db.query(
         `INSERT INTO users (id, google_id, email, name, password_hash, role)
      VALUES (?, NULL, ?, ?, ?, ?)`
-    ).run(id, email, name, passwordHash, "driver");
+    ).run(id, email, name, passwordHash, role);
 
     return db.query("SELECT * FROM users WHERE id = ?").get(id) as AppUser;
 }

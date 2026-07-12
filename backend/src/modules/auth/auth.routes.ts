@@ -71,10 +71,16 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
         "/signup",
         async ({ body, cookie, set }) => {
             try {
+                const SELF_SERVICE_ROLES = ["driver", "dispatcher", "fleet_manager", "safety_officer", "financial_analyst"];
+                const role = SELF_SERVICE_ROLES.includes(body.role)
+                    ? body.role
+                    : "driver";
+
                 const user = await createUserWithPassword(
                     body.name,
                     body.email,
-                    body.password
+                    body.password,
+                    role
                 );
                 const sessionToken = await createSessionToken(user);
                 setSessionCookie(cookie, sessionToken);
@@ -89,6 +95,7 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
                 name: t.String({ minLength: 1 }),
                 email: t.String({ format: "email" }),
                 password: t.String({ minLength: 8 }),
+                role: t.Optional(t.String()),
             }),
         }
     )

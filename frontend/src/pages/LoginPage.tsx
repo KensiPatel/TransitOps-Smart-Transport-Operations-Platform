@@ -1,16 +1,19 @@
 import { useState } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
-import { useToast } from "@/components/ui/Toast";
+import { useAuthStore } from "@/stores/authStore";
+import { toast } from "sonner";
 import { AuthShell } from "@/components/layout/AuthShell";
-import { Field } from "@/components/ui/Field";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { Loader2 } from "lucide-react";
 
-// Seeded accounts (see backend seed.ts). Password is the same for all.
 const DEMO = [
   { role: "Fleet Manager", email: "meera.s@transitops.in" },
   { role: "Safety Officer", email: "karan.v@transitops.in" },
   { role: "Financial Analyst", email: "anjali.t@transitops.in" },
-  { role: "Driver / Dispatcher", email: "raven.k@transitops.in" },
+  { role: "Driver", email: "raven.k@transitops.in" },
 ];
 const DEMO_PASSWORD = "password123";
 
@@ -19,8 +22,8 @@ function safeRedirect(path: unknown): string {
 }
 
 export function LoginPage() {
-  const { user, login } = useAuth();
-  const toast = useToast();
+  const { user, login } = useAuthStore();
+  const toastNotify = toast;
   const navigate = useNavigate();
   const location = useLocation();
   const redirectTo = safeRedirect(location.state?.from);
@@ -36,10 +39,10 @@ export function LoginPage() {
     setBusy(true);
     try {
       await login(email.trim(), password);
-      toast.success("Welcome back.");
+      toastNotify.success("Welcome back.");
       navigate(redirectTo, { replace: true });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Login failed");
+      toastNotify.error(err instanceof Error ? err.message : "Login failed");
     } finally {
       setBusy(false);
     }
@@ -53,61 +56,82 @@ export function LoginPage() {
   return (
     <AuthShell heading="Sign in" sub="Enter your credentials to continue.">
       <form onSubmit={submit} className="space-y-4">
-        <Field label="Email">
-          <input
+        <div className="space-y-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
             type="email"
-            className="input"
             placeholder="you@transitops.in"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
             autoComplete="email"
           />
-        </Field>
-        <Field label="Password">
-          <input
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="password">Password</Label>
+            <button
+              type="button"
+              onClick={() => toastNotify.info("Coming soon.")}
+              className="text-xs text-accent hover:underline"
+            >
+              Forgot password?
+            </button>
+          </div>
+          <Input
+            id="password"
             type="password"
-            className="input"
             placeholder="••••••••"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
             autoComplete="current-password"
           />
-        </Field>
+        </div>
 
-        <button type="submit" className="btn-primary w-full" disabled={busy}>
-          {busy ? "Signing in…" : "Sign in"}
-        </button>
+        <Button type="submit" className="w-full" disabled={busy}>
+          {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {busy ? "Signing in..." : "Sign in"}
+        </Button>
       </form>
 
-      <p className="mt-5 text-center text-sm text-zinc-400">
+      <div className="relative my-6">
+        <Separator />
+        <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
+          Demo accounts
+        </span>
+      </div>
+
+      <p className="mb-2 text-center text-xs text-muted-foreground">
+        Password: <span className="font-mono text-accent">{DEMO_PASSWORD}</span>
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        {DEMO.map((d) => (
+          <Button
+            key={d.email}
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => fillDemo(d.email)}
+            className="h-auto justify-start px-3 py-2 text-left"
+          >
+            <div>
+              <span className="block text-xs font-semibold">{d.role}</span>
+              <span className="block truncate text-[11px] text-muted-foreground">
+                {d.email}
+              </span>
+            </div>
+          </Button>
+        ))}
+      </div>
+
+      <p className="mt-6 text-center text-sm text-muted-foreground">
         Don't have an account?{" "}
         <Link to="/signup" className="font-semibold text-accent hover:underline">
           Register now
         </Link>
       </p>
-
-      {/* Demo accounts — quick role switching for the seeded data. */}
-      <div className="mt-8 rounded-xl border border-ink-600/70 bg-ink-800/60 p-4">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
-          Demo accounts · password{" "}
-          <span className="font-mono text-accent">{DEMO_PASSWORD}</span>
-        </p>
-        <div className="grid grid-cols-2 gap-2">
-          {DEMO.map((d) => (
-            <button
-              key={d.email}
-              type="button"
-              onClick={() => fillDemo(d.email)}
-              className="rounded-lg border border-ink-600 bg-ink-700 px-3 py-2 text-left text-xs hover:border-accent/50"
-            >
-              <span className="block font-semibold text-zinc-200">{d.role}</span>
-              <span className="block truncate text-zinc-500">{d.email}</span>
-            </button>
-          ))}
-        </div>
-      </div>
     </AuthShell>
   );
 }

@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { tripsApi } from "@/api/trips.api";
 import { vehiclesApi } from "@/api/vehicles.api";
 import { driversApi } from "@/api/drivers.api";
-import { useAuth } from "@/context/AuthContext";
-import { useToast } from "@/components/ui/Toast";
+import { useAuthStore } from "@/stores/authStore";
+import { toast } from "sonner";
 import type {
   CreateTripInput,
   Driver,
@@ -12,12 +12,35 @@ import type {
   Vehicle,
 } from "@/types";
 import { money, num, formatDate } from "@/lib/format";
-import { PageHeader, SearchBox } from "@/components/ui/PageHeader";
-import { Table, type Column } from "@/components/ui/Table";
-import { StatusBadge } from "@/components/ui/StatusBadge";
-import { Modal } from "@/components/ui/Modal";
-import { Field, Select } from "@/components/ui/Field";
-import { Icon } from "@/components/ui/Icon";
+import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
+import { Plus } from "lucide-react";
+import {
+  Table as ShadcnTable,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import {
+  Select as ShadcnSelect,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 
 const STATUSES: TripStatus[] = ["Draft", "Dispatched", "Completed", "Cancelled"];
 
@@ -30,9 +53,21 @@ const BLANK: CreateTripInput = {
   driver_id: "",
 };
 
+const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+  Available: "default",
+  "On Trip": "secondary",
+  "In Shop": "outline",
+  Retired: "outline",
+  "Off Duty": "outline",
+  Suspended: "destructive",
+  Draft: "outline",
+  Dispatched: "secondary",
+  Completed: "default",
+  Cancelled: "destructive",
+};
+
 export function TripsPage() {
-  const { user } = useAuth();
-  const toast = useToast();
+  const { user } = useAuthStore();
   const canManage = user?.role === "fleet_manager" || user?.role === "driver";
 
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -122,9 +157,6 @@ export function TripsPage() {
     setTripModal(true);
   }
 
-  // When editing, the trip's own vehicle/driver may no longer be in the
-  // "available" pool (they're reserved to this draft) — include them so the
-  // select doesn't drop the current assignment.
   const vehicleOptions = useMemo(() => {
     const opts = [...availVehicles];
     if (editing?.vehicle_id && !opts.some((v) => v.id === editing.vehicle_id)) {
@@ -209,293 +241,327 @@ export function TripsPage() {
     }
   }
 
-  const columns: Column<Trip>[] = [
-    {
-      header: "Trip",
-      cell: (t) => (
-        <div>
-          <p className="font-mono text-sm font-semibold text-accent">
-            {t.trip_code}
-          </p>
-          <p className="text-xs text-zinc-400">
-            {t.source} → {t.destination}
-          </p>
-        </div>
-      ),
-    },
-    {
-      header: "Assigned",
-      cell: (t) => (
-        <div className="text-xs">
-          <p className="text-zinc-200">
-            {t.vehicle_id ? vName.get(t.vehicle_id) ?? "—" : "No vehicle"}
-          </p>
-          <p className="text-zinc-500">
-            {t.driver_id ? dName.get(t.driver_id) ?? "—" : "No driver"}
-          </p>
-        </div>
-      ),
-    },
-    { header: "Cargo", cell: (t) => num(t.cargo_weight, "kg") },
-    {
-      header: "Distance",
-      cell: (t) => (
-        <div className="text-xs">
-          <p>plan {num(t.planned_distance, "km")}</p>
-          {t.actual_distance != null && (
-            <p className="text-zinc-500">act {num(t.actual_distance, "km")}</p>
-          )}
-        </div>
-      ),
-    },
-    { header: "Revenue", cell: (t) => money(t.revenue) },
-    { header: "Status", cell: (t) => <StatusBadge status={t.status} /> },
-    { header: "Created", cell: (t) => formatDate(t.created_at) },
-    {
-      header: "",
-      className: "text-right",
-      cell: (t) =>
-        canManage ? (
-          <div className="flex justify-end gap-1.5">
-            {t.status === "Draft" && (
-              <>
-                <button
-                  onClick={() => openEdit(t)}
-                  className="rounded-md px-2 py-1 text-xs font-semibold text-zinc-300 hover:bg-ink-600"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => dispatch(t)}
-                  className="rounded-md bg-accent/15 px-2 py-1 text-xs font-semibold text-accent hover:bg-accent/25"
-                >
-                  Dispatch
-                </button>
-                <button
-                  onClick={() => cancel(t)}
-                  className="rounded-md px-2 py-1 text-xs font-semibold text-red-300 hover:bg-red-500/10"
-                >
-                  Cancel
-                </button>
-              </>
-            )}
-            {t.status === "Dispatched" && (
-              <button
-                onClick={() => openComplete(t)}
-                className="rounded-md bg-emerald-500/15 px-2 py-1 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/25"
-              >
-                Complete
-              </button>
-            )}
-            {(t.status === "Completed" || t.status === "Cancelled") && (
-              <span className="text-xs text-zinc-600">—</span>
-            )}
-          </div>
-        ) : (
-          <span className="text-xs text-zinc-600">—</span>
-        ),
-    },
-  ];
+  function renderStatusBadge(status: string) {
+    const variant = STATUS_VARIANT[status] ?? "outline";
+    return <Badge variant={variant}>{status}</Badge>;
+  }
 
   return (
     <>
-      <PageHeader
-        title="Trip Management"
-        subtitle="Dispatch with capacity and licence checks enforced."
-        actions={
-          canManage && (
-            <button onClick={openCreate} className="btn-primary">
-              <Icon name="plus" className="h-4 w-4" /> New trip
-            </button>
-          )
-        }
-      />
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-foreground">
+            Trip Management
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Dispatch with capacity and licence checks enforced.
+          </p>
+        </div>
+        {canManage && (
+          <Button onClick={openCreate}>
+            <Plus className="mr-1 h-4 w-4" /> New trip
+          </Button>
+        )}
+      </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <SearchBox
-          value={search}
-          onChange={setSearch}
-          placeholder="Search code, source, destination…"
-        />
-        <div className="w-40">
-          <Select value={statusFilter} onChange={setStatusFilter}>
-            <option value="">All statuses</option>
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </Select>
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search code, source, destination…"
+            className="pl-9 w-full sm:w-64"
+          />
         </div>
-        <span className="ml-auto text-sm text-zinc-500">
+        <div className="w-40">
+          <ShadcnSelect value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="All statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              {STATUSES.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {s}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </ShadcnSelect>
+        </div>
+        <span className="ml-auto text-sm text-muted-foreground">
           {filtered.length} trip{filtered.length === 1 ? "" : "s"}
         </span>
       </div>
 
-      <Table
-        columns={columns}
-        rows={filtered}
-        keyFn={(t) => t.id}
-        loading={loading}
-        empty="No trips match your filters."
-      />
+      <div className="rounded-md border">
+        <ShadcnTable>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Trip</TableHead>
+              <TableHead>Assigned</TableHead>
+              <TableHead>Cargo</TableHead>
+              <TableHead>Distance</TableHead>
+              <TableHead>Revenue</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Created</TableHead>
+              <TableHead className="text-right"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center text-muted-foreground">
+                  Loading…
+                </TableCell>
+              </TableRow>
+            ) : filtered.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center text-muted-foreground">
+                  No trips match your filters.
+                </TableCell>
+              </TableRow>
+            ) : (
+              filtered.map((t) => (
+                <TableRow key={t.id}>
+                  <TableCell>
+                    <div>
+                      <p className="font-mono text-sm font-semibold text-foreground">
+                        {t.trip_code}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {t.source} → {t.destination}
+                      </p>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-xs">
+                      <p className="text-foreground">
+                        {t.vehicle_id ? vName.get(t.vehicle_id) ?? "—" : "No vehicle"}
+                      </p>
+                      <p className="text-muted-foreground">
+                        {t.driver_id ? dName.get(t.driver_id) ?? "—" : "No driver"}
+                      </p>
+                    </div>
+                  </TableCell>
+                  <TableCell>{num(t.cargo_weight, "kg")}</TableCell>
+                  <TableCell>
+                    <div className="text-xs">
+                      <p>plan {num(t.planned_distance, "km")}</p>
+                      {t.actual_distance != null && (
+                        <p className="text-muted-foreground">
+                          act {num(t.actual_distance, "km")}
+                        </p>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>{money(t.revenue)}</TableCell>
+                  <TableCell>{renderStatusBadge(t.status)}</TableCell>
+                  <TableCell>{formatDate(t.created_at)}</TableCell>
+                  <TableCell className="text-right">
+                    {canManage ? (
+                      <div className="flex justify-end gap-1.5">
+                        {t.status === "Draft" && (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openEdit(t)}
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => dispatch(t)}
+                            >
+                              Dispatch
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => cancel(t)}
+                            >
+                              Cancel
+                            </Button>
+                          </>
+                        )}
+                        {t.status === "Dispatched" && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => openComplete(t)}
+                          >
+                            Complete
+                          </Button>
+                        )}
+                        {(t.status === "Completed" || t.status === "Cancelled") && (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </ShadcnTable>
+      </div>
 
-      {/* Create / edit draft */}
-      <Modal
-        open={tripModal}
-        onClose={() => setTripModal(false)}
-        title={editing ? `Edit ${editing.trip_code}` : "New trip"}
-        subtitle="A trip is created as a Draft. Assign a vehicle and driver, then dispatch."
-        size="lg"
-        footer={
-          <>
-            <button
-              className="btn-ghost"
-              type="button"
-              onClick={() => setTripModal(false)}
-            >
-              Cancel
-            </button>
-            <button className="btn-primary" form="trip-form" disabled={saving}>
-              {saving ? "Saving…" : editing ? "Save draft" : "Create draft"}
-            </button>
-          </>
-        }
-      >
-        <form id="trip-form" onSubmit={saveTrip} className="grid grid-cols-2 gap-4">
-          <Field label="Source">
-            <input
-              className="input"
-              value={form.source}
-              onChange={(e) => setForm({ ...form, source: e.target.value })}
-              required
-            />
-          </Field>
-          <Field label="Destination">
-            <input
-              className="input"
-              value={form.destination}
-              onChange={(e) => setForm({ ...form, destination: e.target.value })}
-              required
-            />
-          </Field>
-          <Field label="Cargo weight (kg)">
-            <input
-              type="number"
-              min={0}
-              className="input"
-              value={form.cargo_weight || ""}
-              onChange={(e) =>
-                setForm({ ...form, cargo_weight: Number(e.target.value) })
-              }
-              required
-            />
-          </Field>
-          <Field label="Planned distance (km)">
-            <input
-              type="number"
-              min={0}
-              className="input"
-              value={form.planned_distance || ""}
-              onChange={(e) =>
-                setForm({ ...form, planned_distance: Number(e.target.value) })
-              }
-              required
-            />
-          </Field>
-          <Field label="Vehicle" hint="Only Available vehicles are listed.">
-            <Select
-              value={form.vehicle_id ?? ""}
-              onChange={(v) => setForm({ ...form, vehicle_id: v })}
-            >
-              <option value="">— Assign later —</option>
-              {vehicleOptions.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.registration_number} · {v.name_model} (
-                  {num(v.max_load_capacity, "kg")})
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="Driver" hint="Only Available, valid-licence drivers.">
-            <Select
-              value={form.driver_id ?? ""}
-              onChange={(v) => setForm({ ...form, driver_id: v })}
-            >
-              <option value="">— Assign later —</option>
-              {driverOptions.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name} · {d.license_category}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        </form>
-      </Modal>
-
-      {/* Complete trip */}
-      <Modal
-        open={!!completeFor}
-        onClose={() => setCompleteFor(null)}
-        title={`Complete ${completeFor?.trip_code ?? ""}`}
-        subtitle="Record the actuals. Vehicle and driver return to Available."
-        footer={
-          <>
-            <button
-              className="btn-ghost"
-              type="button"
-              onClick={() => setCompleteFor(null)}
-            >
-              Cancel
-            </button>
-            <button className="btn-primary" form="complete-form">
-              Complete trip
-            </button>
-          </>
-        }
-      >
-        <form
-          id="complete-form"
-          onSubmit={submitComplete}
-          className="grid grid-cols-2 gap-4"
-        >
-          <Field label="Actual distance (km)">
-            <input
-              type="number"
-              min={0}
-              className="input"
-              value={completeForm.actual_distance || ""}
-              onChange={(e) =>
-                setCompleteForm({
-                  ...completeForm,
-                  actual_distance: Number(e.target.value),
-                })
-              }
-              required
-            />
-          </Field>
-          <Field label="Fuel consumed (L)">
-            <input
-              type="number"
-              min={0}
-              step="0.1"
-              className="input"
-              value={completeForm.fuel_consumed || ""}
-              onChange={(e) =>
-                setCompleteForm({
-                  ...completeForm,
-                  fuel_consumed: Number(e.target.value),
-                })
-              }
-              required
-            />
-          </Field>
-          <div className="col-span-2">
-            <Field label="Revenue (₹)">
-              <input
+      <Dialog open={tripModal} onOpenChange={setTripModal}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {editing ? `Edit ${editing.trip_code}` : "New trip"}
+            </DialogTitle>
+            <DialogDescription>
+              A trip is created as a Draft. Assign a vehicle and driver, then dispatch.
+            </DialogDescription>
+          </DialogHeader>
+          <form id="trip-form" onSubmit={saveTrip} className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Source</Label>
+              <Input
+                value={form.source}
+                onChange={(e) => setForm({ ...form, source: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Destination</Label>
+              <Input
+                value={form.destination}
+                onChange={(e) => setForm({ ...form, destination: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Cargo weight (kg)</Label>
+              <Input
                 type="number"
                 min={0}
-                className="input"
+                value={form.cargo_weight || ""}
+                onChange={(e) =>
+                  setForm({ ...form, cargo_weight: Number(e.target.value) })
+                }
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Planned distance (km)</Label>
+              <Input
+                type="number"
+                min={0}
+                value={form.planned_distance || ""}
+                onChange={(e) =>
+                  setForm({ ...form, planned_distance: Number(e.target.value) })
+                }
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Vehicle</Label>
+              <p className="text-xs text-muted-foreground">Only Available vehicles are listed.</p>
+              <ShadcnSelect
+                value={form.vehicle_id ?? ""}
+                onValueChange={(v) => setForm({ ...form, vehicle_id: v })}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="— Assign later —" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— Assign later —</SelectItem>
+                  {vehicleOptions.map((v) => (
+                    <SelectItem key={v.id} value={v.id}>
+                      {v.registration_number} · {v.name_model} (
+                      {num(v.max_load_capacity, "kg")})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </ShadcnSelect>
+            </div>
+            <div className="space-y-2">
+              <Label>Driver</Label>
+              <p className="text-xs text-muted-foreground">Only Available, valid-licence drivers.</p>
+              <ShadcnSelect
+                value={form.driver_id ?? ""}
+                onValueChange={(v) => setForm({ ...form, driver_id: v })}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="— Assign later —" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— Assign later —</SelectItem>
+                  {driverOptions.map((d) => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.name} · {d.license_category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </ShadcnSelect>
+            </div>
+          </form>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTripModal(false)} type="button">
+              Cancel
+            </Button>
+            <Button type="submit" form="trip-form" disabled={saving}>
+              {saving ? "Saving…" : editing ? "Save draft" : "Create draft"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!completeFor} onOpenChange={(open) => { if (!open) setCompleteFor(null); }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Complete {completeFor?.trip_code ?? ""}</DialogTitle>
+            <DialogDescription>
+              Record the actuals. Vehicle and driver return to Available.
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            id="complete-form"
+            onSubmit={submitComplete}
+            className="grid grid-cols-2 gap-4"
+          >
+            <div className="space-y-2">
+              <Label>Actual distance (km)</Label>
+              <Input
+                type="number"
+                min={0}
+                value={completeForm.actual_distance || ""}
+                onChange={(e) =>
+                  setCompleteForm({
+                    ...completeForm,
+                    actual_distance: Number(e.target.value),
+                  })
+                }
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Fuel consumed (L)</Label>
+              <Input
+                type="number"
+                min={0}
+                step="0.1"
+                value={completeForm.fuel_consumed || ""}
+                onChange={(e) =>
+                  setCompleteForm({
+                    ...completeForm,
+                    fuel_consumed: Number(e.target.value),
+                  })
+                }
+                required
+              />
+            </div>
+            <div className="col-span-2 space-y-2">
+              <Label>Revenue (₹)</Label>
+              <Input
+                type="number"
+                min={0}
                 value={completeForm.revenue || ""}
                 onChange={(e) =>
                   setCompleteForm({
@@ -504,10 +570,18 @@ export function TripsPage() {
                   })
                 }
               />
-            </Field>
-          </div>
-        </form>
-      </Modal>
+            </div>
+          </form>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCompleteFor(null)} type="button">
+              Cancel
+            </Button>
+            <Button type="submit" form="complete-form">
+              Complete trip
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
