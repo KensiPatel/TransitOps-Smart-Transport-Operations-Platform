@@ -25,7 +25,7 @@ import { jwt } from "@elysiajs/jwt";
 // import { authRoutes } from "./modules/auth/auth.routes";
 import { vehicleRoutes } from "./modules/vehicles/vehicles.routes";
 import { driverRoutes } from "./modules/drivers/drivers.routes";
-// import { tripRoutes } from "./modules/trips/trip.routes";
+import { tripRoutes } from "./modules/trips/trips.routes";
 // import { maintenanceRoutes } from "./modules/maintenance/maintenance.routes";
 // import { fuelRoutes } from "./modules/fuel-expenses/fuel.routes";
 // import { expenseRoutes } from "./modules/fuel-expenses/expense.routes";
@@ -62,7 +62,7 @@ const app = new Elysia()
   // .use(authRoutes)
   .use(vehicleRoutes)
   .use(driverRoutes)
-  // .use(tripRoutes)
+  .use(tripRoutes)
   // .use(maintenanceRoutes)
   // .use(fuelRoutes)
   // .use(expenseRoutes)
