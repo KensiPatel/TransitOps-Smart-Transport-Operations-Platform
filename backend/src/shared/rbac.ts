@@ -2,8 +2,20 @@ import { Elysia } from "elysia";
 import { verifySessionToken, getUserById } from "../modules/auth/auth.service";
 import type { UserRole } from "../modules/auth/auth.types";
 
-/** Attaches `user` to context if a valid session cookie is present; 401s otherwise. */
-export const requireAuth = new Elysia().derive(
+/**
+ * requireAuth
+ *
+ * Attaches `user` to the request context if a valid session cookie is present;
+ * otherwise 401s. This mirrors the inline session check in auth.routes.ts
+ * (/me), but as a reusable scoped guard so any module can require a logged-in
+ * user without duplicating the cookie/verify/lookup dance.
+ *
+ * Usage:
+ *   new Elysia({ prefix: "/dashboard" })
+ *     .use(requireAuth)
+ *     .get("/", ({ user }) => { ...user is available and typed... })
+ */
+export const requireAuth = new Elysia({ name: "requireAuth" }).derive(
     { as: "scoped" },
     async ({ cookie, set }) => {
         const token = cookie.session?.value as string | undefined;
@@ -11,6 +23,7 @@ export const requireAuth = new Elysia().derive(
             set.status = 401;
             throw new Error("Not authenticated");
         }
+
         try {
             const session = await verifySessionToken(token);
             const user = getUserById(session.sub);
@@ -18,6 +31,7 @@ export const requireAuth = new Elysia().derive(
                 set.status = 401;
                 throw new Error("User not found");
             }
+
             return { user };
         } catch {
             set.status = 401;
@@ -33,6 +47,7 @@ export function requireRole(...roles: UserRole[]) {
             set.status = 403;
             throw new Error("Forbidden: insufficient role");
         }
+
         return {};
     });
 }
