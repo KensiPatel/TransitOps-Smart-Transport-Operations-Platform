@@ -13,5 +13,13 @@
     "@elysiajs/cors": "^1.4.2",
     "@elysiajs/jwt": "^1.4.2",
     "elysia": "^1.4.29"
-  }
+  },
+  "scripts": {
+  "start": "bun run src/index.ts",
+  "dev": "bun run --watch src/index.ts",
+  "db:migrate": "bun run src/db/migrate.ts",
+  "db:seed": "bun run src/db/seed.ts",
+  "db:verify": "bun run src/db/verify.ts",
+  "db:reset": "rm -f transitops.db transitops.db-shm transitops.db-wal && bun run src/db/migrate.ts && bun run src/db/seed.ts"
+}
 }

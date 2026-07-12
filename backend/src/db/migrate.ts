@@ -6,7 +6,7 @@ export async function runMigrations() {
 
   db.exec(schemaSql);
 
-  console.log("✅ Migrations applied — schema is up to date.");
+  console.log("Migrations applied — schema is up to date.");
 }
 
 if (import.meta.main) {

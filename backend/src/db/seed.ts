@@ -126,7 +126,7 @@ async function seed() {
   insertExpense.run(newId(), truck11, null, "toll", 340, "2026-07-06", financialAnalystId);
   insertExpense.run(newId(), truck11, null, "parking", 150, "2026-07-06", financialAnalystId);
 
-  console.log("✅ Seed data inserted — 4 users, 4 vehicles, 4 drivers, 3 trips, 2 maintenance logs, 2 fuel logs, 3 expenses.");
+  console.log("Seed data inserted — 4 users, 4 vehicles, 4 drivers, 3 trips, 2 maintenance logs, 2 fuel logs, 3 expenses.");
 }
 
 seed();

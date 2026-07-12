@@ -12,7 +12,7 @@ db.query(
   newId(), "GJ01AB7788", "TRUCK-20", "Truck", 4000, 12000, 2100000, "Ahmedabad", "Available", now()
 );
 
-console.log("✅ Row inserted.");
+console.log("Row inserted.");
 
 // ---------- Example: add a new driver ----------
 // db.query(
