@@ -1,14 +1,6 @@
 import { db, newId, now } from "./client";
 import { runMigrations } from "./migrate";
 
-/**
- * Populates the DB with demo data matching the Excalidraw mockup
- * (VAN-05, Alex, TR001, etc.) so the dashboard/reports aren't empty
- * when you're demoing to judges.
- *
- * Run with: bun run src/db/seed.ts
- * Safe to re-run — clears existing rows first.
- */
 
 function clearAll() {
   const tables = [
