@@ -11,6 +11,7 @@ import { Loader2 } from "lucide-react";
 
 const DEMO = [
   { role: "Fleet Manager", email: "meera.s@transitops.in" },
+  { role: "Dispatcher", email: "priya.m@transitops.in" },
   { role: "Safety Officer", email: "karan.v@transitops.in" },
   { role: "Financial Analyst", email: "anjali.t@transitops.in" },
   { role: "Driver", email: "raven.k@transitops.in" },
