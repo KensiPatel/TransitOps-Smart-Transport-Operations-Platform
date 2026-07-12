@@ -7,7 +7,7 @@ import { vehicleRoutes } from "./modules/vehicles/vehicles.routes";
 import { driverRoutes } from "./modules/drivers/drivers.routes";
 import { tripRoutes } from "./modules/trips/trips.routes";
 import { maintenanceRoutes } from "./modules/maintenance/maintenance.routes";
-import { fuelRoutes } from "./modules/fuel-expenses/fuel-expenses.routes";
+import { fuelRoutes, expenseRoutes } from "./modules/fuel-expenses/fuel-expenses.routes";
 import { dashboardRoutes } from "./modules/dashboard/dashboard.routes";
 import { reportRoutes } from "./modules/reports/reports.routes";
 
@@ -37,6 +37,7 @@ const app = new Elysia()
   .use(maintenanceRoutes)
   .use(fuelRoutes)
   .use(dashboardRoutes)
+  .use(expenseRoutes)
   .use(reportRoutes)
 
   .listen(PORT);
