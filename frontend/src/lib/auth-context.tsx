@@ -14,11 +14,28 @@ interface AuthContextValue {
     user: CurrentUser | null;
     loading: boolean;
     loginWithGoogle: (credential: string) => Promise<void>;
+    signup: (name: string, email: string, password: string) => Promise<void>;
+    login: (email: string, password: string) => Promise<void>;
+    forgotPassword: (email: string) => Promise<string>; // returns OTP for popup display
+    resetPassword: (email: string, otp: string, newPassword: string) => Promise<void>;
     logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 const API_URL = import.meta.env.VITE_API_URL;
+
+async function parseJsonOrThrow(res: Response, fallbackMessage: string) {
+    let data: any = null;
+    try {
+        data = await res.json();
+    } catch {
+        // ignore parse failure, use fallback
+    }
+    if (!res.ok) {
+        throw new Error(data?.error ?? fallbackMessage);
+    }
+    return data;
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<CurrentUser | null>(null);
@@ -49,9 +66,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             credentials: "include",
             body: JSON.stringify({ credential }),
         });
-        if (!res.ok) throw new Error("Google sign-in failed");
-        const data = await res.json();
+        const data = await parseJsonOrThrow(res, "Google sign-in failed");
         setUser(data.user);
+    }
+
+    async function signup(name: string, email: string, password: string) {
+        const res = await fetch(`${API_URL}/auth/signup`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ name, email, password }),
+        });
+        const data = await parseJsonOrThrow(res, "Signup failed");
+        setUser(data.user);
+    }
+
+    async function login(email: string, password: string) {
+        const res = await fetch(`${API_URL}/auth/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ email, password }),
+        });
+        const data = await parseJsonOrThrow(res, "Login failed");
+        setUser(data.user);
+    }
+
+    async function forgotPassword(email: string): Promise<string> {
+        const res = await fetch(`${API_URL}/auth/forgot-password`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ email }),
+        });
+        const data = await parseJsonOrThrow(res, "Could not generate OTP");
+        return data.otp as string;
+    }
+
+    async function resetPassword(email: string, otp: string, newPassword: string) {
+        const res = await fetch(`${API_URL}/auth/reset-password`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ email, otp, newPassword }),
+        });
+        await parseJsonOrThrow(res, "Password reset failed");
     }
 
     async function logout() {
@@ -63,7 +122,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     return (
-        <AuthContext.Provider value={{ user, loading, loginWithGoogle, logout }}>
+        <AuthContext.Provider
+            value={{ user, loading, loginWithGoogle, signup, login, forgotPassword, resetPassword, logout }}
+        >
             {children}
         </AuthContext.Provider>
     );
