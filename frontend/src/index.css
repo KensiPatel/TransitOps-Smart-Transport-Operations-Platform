@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-ink-900 text-zinc-200 font-sans antialiased;
+  }
+
+  /* Scrollbars tuned to the dark surface */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-ink-600 rounded-full;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  /* Autofill on the dark login form */
+  input:-webkit-autofill,
+  input:-webkit-autofill:focus {
+    -webkit-text-fill-color: #e4e4e7;
+    -webkit-box-shadow: 0 0 0 1000px #1c1c1f inset;
+    caret-color: #e4e4e7;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-ink-800 border border-ink-600/70 rounded-2xl shadow-card;
+  }
+
+  .field-label {
+    @apply block text-xs font-medium uppercase tracking-wide text-accent mb-1.5;
+  }
+
+  .input {
+    @apply w-full rounded-lg bg-ink-700 border border-ink-600 px-3.5 py-2.5 text-sm
+           text-zinc-100 placeholder:text-zinc-500 outline-none
+           focus:border-accent focus:ring-1 focus:ring-accent/60 transition;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm
+           font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/70;
+  }
+  .btn-primary {
+    @apply btn bg-accent text-ink-900 hover:bg-accent-hover;
+  }
+  .btn-ghost {
+    @apply btn bg-ink-700 text-zinc-200 hover:bg-ink-600 border border-ink-600;
+  }
+  .btn-danger {
+    @apply btn bg-red-500/90 text-white hover:bg-red-500;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}

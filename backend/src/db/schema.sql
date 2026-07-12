@@ -6,11 +6,23 @@
 
 PRAGMA foreign_keys = ON;
 
+-- Reset the schema so rerunning migrations against an existing SQLite file
+-- produces a clean, deterministic database.
+PRAGMA foreign_keys = OFF;
+
+DROP TABLE IF EXISTS expenses;
+DROP TABLE IF EXISTS fuel_logs;
+DROP TABLE IF EXISTS maintenance_logs;
+DROP TABLE IF EXISTS trips;
+DROP TABLE IF EXISTS drivers;
+DROP TABLE IF EXISTS vehicles;
+DROP TABLE IF EXISTS users;
+
+PRAGMA foreign_keys = ON;
+
 -- ============================================
 -- USERS & AUTH
 -- ============================================
-DROP TABLE IF EXISTS users;
-
 CREATE TABLE users (
   id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
   google_id TEXT UNIQUE,

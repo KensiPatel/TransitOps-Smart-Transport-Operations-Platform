@@ -34,7 +34,7 @@ async function seed() {
   // Bun.password.hash() output once auth.service.ts exists.
   const placeholderHash = await Bun.password.hash("password123");
 
-  insertUser.run(dispatcherId, "Raven K.", "raven.k@transitops.in", placeholderHash, "dispatcher", now());
+  insertUser.run(dispatcherId, "Raven K.", "raven.k@transitops.in", placeholderHash, "fleet_manager", now());
   insertUser.run(fleetManagerId, "Meera S.", "meera.s@transitops.in", placeholderHash, "fleet_manager", now());
   insertUser.run(safetyOfficerId, "Karan V.", "karan.v@transitops.in", placeholderHash, "safety_officer", now());
   insertUser.run(financialAnalystId, "Anjali T.", "anjali.t@transitops.in", placeholderHash, "financial_analyst", now());
