@@ -1,14 +1,20 @@
 import { useState } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/components/ui/Toast";
 import { AuthShell } from "@/components/layout/AuthShell";
 import { Field } from "@/components/ui/Field";
 
+function safeRedirect(path: unknown): string {
+  return typeof path === "string" && path.startsWith("/") ? path : "/dashboard";
+}
+
 export function SignupPage() {
   const { user, signup } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
+  const redirectTo = safeRedirect(location.state?.from);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -17,7 +23,7 @@ export function SignupPage() {
   const [agree, setAgree] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  if (user) return <Navigate to="/dashboard" replace />;
+  if (user) return <Navigate to={redirectTo} replace />;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -33,7 +39,7 @@ export function SignupPage() {
     try {
       await signup(name.trim(), email.trim(), password);
       toast.success("Account created.");
-      navigate("/dashboard");
+      navigate(redirectTo, { replace: true });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Signup failed");
     } finally {

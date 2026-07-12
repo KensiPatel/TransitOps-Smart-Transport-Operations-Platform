@@ -1,72 +1,201 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@import "shadcn/tailwind.css";
+@import "tw-animate-css";
+@import "@fontsource-variable/geist";
 
-@layer base {
-  :root {
-    color-scheme: dark;
-  }
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
 
-  html,
-  body,
-  #root {
-    height: 100%;
-  }
+  --color-ink-900: #0a0a0b;
+  --color-ink-800: #141416;
+  --color-ink-700: #1c1c1f;
+  --color-ink-600: #26262b;
+  --color-ink-500: #33333a;
+  --color-accent: #f97316;
+  --color-accent-hover: #fb8b3c;
+  --color-accent-soft: #fed7aa;
 
-  body {
-    @apply bg-ink-900 text-zinc-200 font-sans antialiased;
-  }
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
 
-  /* Scrollbars tuned to the dark surface */
-  ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-  }
-  ::-webkit-scrollbar-thumb {
-    @apply bg-ink-600 rounded-full;
-  }
-  ::-webkit-scrollbar-track {
-    @apply bg-transparent;
-  }
+  --font-sans: "Geist Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Sora", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
-  /* Autofill on the dark login form */
-  input:-webkit-autofill,
-  input:-webkit-autofill:focus {
-    -webkit-text-fill-color: #e4e4e7;
-    -webkit-box-shadow: 0 0 0 1000px #1c1c1f inset;
-    caret-color: #e4e4e7;
-  }
+  --shadow-card: 0 1px 0 0 rgba(255,255,255,0.03) inset, 0 8px 24px -12px rgba(0,0,0,0.6);
 }
 
-@layer components {
-  .card {
-    @apply bg-ink-800 border border-ink-600/70 rounded-2xl shadow-card;
-  }
+:root {
+  color-scheme: dark;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
 
-  .field-label {
-    @apply block text-xs font-medium uppercase tracking-wide text-accent mb-1.5;
-  }
+html,
+body,
+#root {
+  height: 100%;
+}
 
-  .input {
-    @apply w-full rounded-lg bg-ink-700 border border-ink-600 px-3.5 py-2.5 text-sm
-           text-zinc-100 placeholder:text-zinc-500 outline-none
-           focus:border-accent focus:ring-1 focus:ring-accent/60 transition;
-  }
+body {
+  @apply font-sans antialiased bg-background text-foreground;
+}
 
-  .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm
-           font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed
-           focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/70;
-  }
-  .btn-primary {
-    @apply btn bg-accent text-ink-900 hover:bg-accent-hover;
-  }
-  .btn-ghost {
-    @apply btn bg-ink-700 text-zinc-200 hover:bg-ink-600 border border-ink-600;
-  }
-  .btn-danger {
-    @apply btn bg-red-500/90 text-white hover:bg-red-500;
-  }
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-ink-600 rounded-full;
+}
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #e4e4e7;
+  -webkit-box-shadow: 0 0 0 1000px #1c1c1f inset;
+  caret-color: #e4e4e7;
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+* {
+  @apply border-border outline-ring/50;
+}
+html {
+  @apply font-sans;
+}
+
+.card {
+  @apply bg-ink-800 border border-ink-600/70 rounded-2xl shadow-card;
+}
+
+.field-label {
+  @apply block text-xs font-medium uppercase tracking-wide text-accent mb-1.5;
+}
+
+.input {
+  @apply w-full rounded-lg bg-ink-700 border border-ink-600 px-3.5 py-2.5 text-sm
+         text-zinc-100 placeholder:text-zinc-500 outline-none
+         focus:border-accent focus:ring-1 focus:ring-accent/60 transition;
+}
+
+.btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm
+         font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed
+         focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/70;
+}
+.btn-primary {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm
+         font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed
+         focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/70
+         bg-accent text-ink-900 hover:bg-accent-hover;
+}
+.btn-ghost {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm
+         font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed
+         focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/70
+         bg-ink-700 text-zinc-200 hover:bg-ink-600 border border-ink-600;
+}
+.btn-danger {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm
+         font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed
+         focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/70
+         bg-red-500/90 text-white hover:bg-red-500;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/components/ui/Toast";
 import { AuthShell } from "@/components/layout/AuthShell";
@@ -14,16 +14,22 @@ const DEMO = [
 ];
 const DEMO_PASSWORD = "password123";
 
+function safeRedirect(path: unknown): string {
+  return typeof path === "string" && path.startsWith("/") ? path : "/dashboard";
+}
+
 export function LoginPage() {
   const { user, login } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
+  const redirectTo = safeRedirect(location.state?.from);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
 
-  if (user) return <Navigate to="/dashboard" replace />;
+  if (user) return <Navigate to={redirectTo} replace />;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -31,7 +37,7 @@ export function LoginPage() {
     try {
       await login(email.trim(), password);
       toast.success("Welcome back.");
-      navigate("/dashboard");
+      navigate(redirectTo, { replace: true });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Login failed");
     } finally {
