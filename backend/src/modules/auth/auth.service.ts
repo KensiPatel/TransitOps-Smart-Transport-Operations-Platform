@@ -1,6 +1,11 @@
 import { jwtVerify, SignJWT, createRemoteJWKSet } from "jose";
 import { db } from "../../db/client";
-import type { AppUser, GoogleTokenPayload, SessionPayload, UserRole } from "./auth.types";
+import type {
+    AppUser,
+    GoogleTokenPayload,
+    SessionPayload,
+    UserRole,
+} from "./auth.types";
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID!;
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET!);
@@ -15,10 +20,10 @@ if (!process.env.JWT_SECRET) {
     throw new Error("JWT_SECRET env var is required");
 }
 
-/**
- * Verifies a Google-issued ID token (the `credential` from Google Identity
- * Services) against Google's public keys. Throws if invalid/expired/wrong audience.
- */
+// ============================================================
+// GOOGLE AUTH
+// ============================================================
+
 export async function verifyGoogleToken(
     credential: string
 ): Promise<GoogleTokenPayload> {
@@ -37,10 +42,6 @@ export async function verifyGoogleToken(
     return payload as unknown as GoogleTokenPayload;
 }
 
-/**
- * Finds an existing user by google_id, or creates one on first login.
- * Defaults new users to the 'driver' role — promote via DB/admin as needed.
- */
 export function upsertUserFromGoogle(payload: GoogleTokenPayload): AppUser {
     const existing = db
         .query("SELECT * FROM users WHERE google_id = ?")
@@ -68,7 +69,10 @@ export function upsertUserFromGoogle(payload: GoogleTokenPayload): AppUser {
     return db.query("SELECT * FROM users WHERE id = ?").get(id) as AppUser;
 }
 
-/** Issues our own signed session JWT (separate from Google's token). */
+// ============================================================
+// SESSION (shared by Google + password auth)
+// ============================================================
+
 export async function createSessionToken(user: AppUser): Promise<string> {
     const payload: SessionPayload = {
         sub: user.id,
@@ -94,4 +98,78 @@ export function getUserById(id: string): AppUser | undefined {
     return db.query("SELECT * FROM users WHERE id = ?").get(id) as
         | AppUser
         | undefined;
+}
+
+export function getUserByEmail(email: string): AppUser | undefined {
+    return db.query("SELECT * FROM users WHERE email = ?").get(email) as
+        | AppUser
+        | undefined;
+}
+
+// ============================================================
+// PASSWORD AUTH
+// ============================================================
+
+export async function hashPassword(password: string): Promise<string> {
+    return Bun.password.hash(password, { algorithm: "bcrypt", cost: 10 });
+}
+
+export async function verifyPassword(
+    password: string,
+    hash: string
+): Promise<boolean> {
+    return Bun.password.verify(password, hash);
+}
+
+export async function createUserWithPassword(
+    name: string,
+    email: string,
+    password: string
+): Promise<AppUser> {
+    const existing = getUserByEmail(email);
+    if (existing) {
+        throw new Error("Email already registered");
+    }
+
+    const id = crypto.randomUUID();
+    const passwordHash = await hashPassword(password);
+
+    db.query(
+        `INSERT INTO users (id, google_id, email, name, password_hash, role)
+     VALUES (?, NULL, ?, ?, ?, ?)`
+    ).run(id, email, name, passwordHash, "driver");
+
+    return db.query("SELECT * FROM users WHERE id = ?").get(id) as AppUser;
+}
+
+export function updateUserPassword(email: string, newPasswordHash: string) {
+    db.query("UPDATE users SET password_hash = ? WHERE email = ?").run(
+        newPasswordHash,
+        email
+    );
+}
+
+// ============================================================
+// OTP (in-memory, hackathon-scale — resets on server restart)
+// ============================================================
+
+const otpStore = new Map<string, { otp: string; expiresAt: number }>();
+const OTP_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+export function generateOtp(email: string): string {
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    otpStore.set(email, { otp, expiresAt: Date.now() + OTP_TTL_MS });
+    return otp;
+}
+
+export function verifyOtp(email: string, otp: string): boolean {
+    const record = otpStore.get(email);
+    if (!record) return false;
+    if (Date.now() > record.expiresAt) {
+        otpStore.delete(email);
+        return false;
+    }
+    const valid = record.otp === otp;
+    if (valid) otpStore.delete(email);
+    return valid;
 }
